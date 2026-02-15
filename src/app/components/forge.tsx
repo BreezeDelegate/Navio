@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { generateSpecificationAction, type ForgeState } from '@/app/actions';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -41,7 +42,7 @@ function SubmitButton() {
 }
 
 export function Forge() {
-  const [state, formAction] = useFormState(
+  const [state, formAction] = useActionState(
     generateSpecificationAction,
     initialState
   );
