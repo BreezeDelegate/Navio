@@ -1,6 +1,6 @@
 'use server';
 
-import { ai } from '@/ai/genkit';
+import { createGeminiAI } from '@/ai/genkit';
 import { z } from 'genkit';
 
 const GenerateBotSpecificationInputSchema = z.object({
@@ -66,38 +66,25 @@ export type GenerateBotSpecificationOutput = z.infer<
 >;
 
 export async function generateBotSpecificationFromPrompt(
-  input: GenerateBotSpecificationInput
+  input: GenerateBotSpecificationInput,
+  apiKey?: string
 ): Promise<GenerateBotSpecificationOutput> {
-  return generateBotSpecificationFromPromptFlow(input);
-}
-
-const botSpecificationPrompt = ai.definePrompt({
-  name: 'botSpecificationPrompt',
-  input: { schema: GenerateBotSpecificationInputSchema },
-  output: { schema: GenerateBotSpecificationOutputSchema },
-  prompt: `Turn the brief below into an implementation-ready bot specification using Navio's 44-36 format.
+  const ai = createGeminiAI(apiKey);
+  const { output } = await ai.generate({
+    output: { schema: GenerateBotSpecificationOutputSchema },
+    prompt: `Turn the brief below into an implementation-ready bot specification using Navio's 44-36 format.
 
 Use version 1.0.0. Keep the proposal realistic for a small team. Do not invent existing integrations, credentials, APIs, datasets, or infrastructure. Put uncertain details in assumptions. Environment variable names must use uppercase snake case. Setup steps must be ordered and actionable. Acceptance criteria must be observable and testable. Performance metrics must include a measurable target. Out-of-scope items should prevent the first version from growing without limits.
 
 The muse capability explains what the bot observes or processes. The call capability explains what it does or changes. Inputs describe incoming data. Outputs describe results visible to users or other systems.
 
 Brief:
-"""{{{botDescription}}}"""`,
-});
+"""${input.botDescription}"""`,
+  });
 
-const generateBotSpecificationFromPromptFlow = ai.defineFlow(
-  {
-    name: 'generateBotSpecificationFromPromptFlow',
-    inputSchema: GenerateBotSpecificationInputSchema,
-    outputSchema: GenerateBotSpecificationOutputSchema,
-  },
-  async (input) => {
-    const { output } = await botSpecificationPrompt(input);
-
-    if (!output) {
-      throw new Error('No specification was returned.');
-    }
-
-    return output;
+  if (!output) {
+    throw new Error('No specification was returned.');
   }
-);
+
+  return output;
+}
