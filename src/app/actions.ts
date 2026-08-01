@@ -6,6 +6,10 @@ import {
   type GenerateBotSpecificationOutput,
 } from '@/ai/flows/generate-bot-specification-from-prompt';
 import {
+  redactSecret,
+  resolveGeminiApiKey,
+} from '@/lib/gemini-api-key';
+import {
   validateSpecification,
   type SpecificationValidation,
 } from '@/lib/specification-validation';
@@ -27,6 +31,7 @@ const briefSchema = z.object({
   inputs: z.string().trim().max(1500).optional(),
   actions: z.string().trim().max(1500).optional(),
   constraints: z.string().trim().max(1500).optional(),
+  apiKey: z.string().trim().max(512).optional(),
 });
 
 function readField(formData: FormData, name: string) {
@@ -56,6 +61,7 @@ export async function generateSpecificationAction(
     inputs: readField(formData, 'inputs'),
     actions: readField(formData, 'actions'),
     constraints: readField(formData, 'constraints'),
+    apiKey: readField(formData, 'apiKey'),
   });
 
   if (!parsed.success) {
@@ -67,19 +73,23 @@ export async function generateSpecificationAction(
     };
   }
 
-  if (!process.env.GEMINI_API_KEY && !process.env.GOOGLE_API_KEY) {
+  const apiKey = resolveGeminiApiKey(parsed.data.apiKey);
+
+  if (!apiKey) {
     return {
       spec: null,
       validation: null,
-      error: 'Set GEMINI_API_KEY in .env.local before generating a specification.',
+      error:
+        'No Gemini API key is available. Paste a personal key below or configure GEMINI_API_KEY, GOOGLE_API_KEY or GOOGLE_GENAI_API_KEY on the server.',
       key: previousState.key + 1,
     };
   }
 
   try {
-    const spec = await generateBotSpecificationFromPrompt({
-      botDescription: buildBrief(parsed.data),
-    });
+    const spec = await generateBotSpecificationFromPrompt(
+      { botDescription: buildBrief(parsed.data) },
+      apiKey
+    );
     const validation = validateSpecification(spec);
 
     return {
@@ -89,12 +99,17 @@ export async function generateSpecificationAction(
       key: previousState.key + 1,
     };
   } catch (error) {
-    console.error('Specification generation failed', error);
+    const safeMessage =
+      error instanceof Error
+        ? redactSecret(error.message, apiKey)
+        : 'Unknown generation error';
+    console.error('Specification generation failed:', safeMessage);
 
     return {
       spec: null,
       validation: null,
-      error: 'Generation failed. Check the API key and try again with a more specific brief.',
+      error:
+        'Generation failed. Check the selected Gemini key and try again with a more specific brief.',
       key: previousState.key + 1,
     };
   }
