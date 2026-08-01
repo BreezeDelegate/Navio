@@ -20,6 +20,7 @@ import {
   Terminal,
   Trash2,
 } from 'lucide-react';
+import { ApiKeyControl } from './api-key-control';
 import { SpecDisplay } from './spec-display';
 import { SpecSkeleton } from './spec-skeletons';
 
@@ -51,6 +52,10 @@ type SavedSpecification = {
   createdAt: string;
   spec: NonNullable<ForgeState['spec']>;
   validation: NonNullable<ForgeState['validation']>;
+};
+
+type ForgeProps = {
+  serverKeyAvailable: boolean;
 };
 
 function isSavedSpecification(value: unknown): value is SavedSpecification {
@@ -110,7 +115,7 @@ function SubmitButton() {
   );
 }
 
-export function Forge() {
+export function Forge({ serverKeyAvailable }: ForgeProps) {
   const [state, formAction, pending] = useActionState(
     generateSpecificationAction,
     initialState
@@ -293,6 +298,8 @@ export function Forge() {
           </Button>
         </div>
 
+        <ApiKeyControl serverKeyAvailable={serverKeyAvailable} />
+
         <div className="space-y-2">
           <Label htmlFor="prompt">Main idea</Label>
           <Textarea
@@ -355,7 +362,9 @@ export function Forge() {
 
         <div className="flex flex-col-reverse gap-3 border-t pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-muted-foreground">
-            Generation uses the server-side Gemini key configured by the project owner.
+            {serverKeyAvailable
+              ? 'The server key is used by default. A personal key overrides it only for the submitted generation.'
+              : 'No server key is configured, so a personal Gemini key is required.'}
           </p>
           <SubmitButton />
         </div>
