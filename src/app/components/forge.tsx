@@ -27,6 +27,22 @@ type SavedSpecification = {
   validation: NonNullable<ForgeState['validation']>;
 };
 
+function isSavedSpecification(value: unknown): value is SavedSpecification {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const item = value as Partial<SavedSpecification>;
+  return (
+    typeof item.id === 'string' &&
+    typeof item.createdAt === 'string' &&
+    !!item.spec &&
+    typeof item.spec === 'object' &&
+    !!item.validation &&
+    typeof item.validation === 'object'
+  );
+}
+
 function readHistory(): SavedSpecification[] {
   try {
     const stored = window.localStorage.getItem(HISTORY_KEY);
@@ -34,8 +50,10 @@ function readHistory(): SavedSpecification[] {
       return [];
     }
 
-    const parsed = JSON.parse(stored);
-    return Array.isArray(parsed) ? parsed.slice(0, HISTORY_LIMIT) : [];
+    const parsed: unknown = JSON.parse(stored);
+    return Array.isArray(parsed)
+      ? parsed.filter(isSavedSpecification).slice(0, HISTORY_LIMIT)
+      : [];
   } catch {
     return [];
   }
@@ -71,11 +89,26 @@ export function Forge() {
     initialState
   );
   const [history, setHistory] = useState<SavedSpecification[]>([]);
+  const [historyReady, setHistoryReady] = useState(false);
   const [selected, setSelected] = useState<SavedSpecification | null>(null);
 
   useEffect(() => {
     setHistory(readHistory());
+    setHistoryReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!historyReady) {
+      return;
+    }
+
+    if (history.length === 0) {
+      window.localStorage.removeItem(HISTORY_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+  }, [history, historyReady]);
 
   useEffect(() => {
     if (!state.spec || !state.validation || state.key === 0) {
@@ -90,20 +123,14 @@ export function Forge() {
     };
     const serializedSpec = JSON.stringify(state.spec);
 
-    setHistory((current) => {
-      const next = [
-        entry,
-        ...current.filter((item) => JSON.stringify(item.spec) !== serializedSpec),
-      ].slice(0, HISTORY_LIMIT);
-
-      window.localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-      return next;
-    });
+    setHistory((current) => [
+      entry,
+      ...current.filter((item) => JSON.stringify(item.spec) !== serializedSpec),
+    ].slice(0, HISTORY_LIMIT));
     setSelected(null);
   }, [state.key, state.spec, state.validation]);
 
   const clearHistory = () => {
-    window.localStorage.removeItem(HISTORY_KEY);
     setHistory([]);
     setSelected(null);
   };
