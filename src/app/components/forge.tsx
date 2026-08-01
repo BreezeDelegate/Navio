@@ -7,11 +7,24 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Bot, FileText, History, Loader2, Sparkles, Terminal, Trash2 } from 'lucide-react';
+import {
+  BookOpen,
+  Bot,
+  CheckCircle2,
+  FileText,
+  History,
+  Loader2,
+  PencilLine,
+  Rocket,
+  Sparkles,
+  Terminal,
+  Trash2,
+} from 'lucide-react';
 import { SpecDisplay } from './spec-display';
 import { SpecSkeleton } from './spec-skeletons';
 
 const HISTORY_KEY = 'navio_spec_history';
+const ONBOARDING_KEY = 'navio_onboarding_seen';
 const HISTORY_LIMIT = 8;
 
 const exampleBrief = {
@@ -110,9 +123,11 @@ export function Forge() {
   const [history, setHistory] = useState<SavedSpecification[]>([]);
   const [historyReady, setHistoryReady] = useState(false);
   const [selected, setSelected] = useState<SavedSpecification | null>(null);
+  const [showGuide, setShowGuide] = useState(false);
 
   useEffect(() => {
     setHistory(readHistory());
+    setShowGuide(window.localStorage.getItem(ONBOARDING_KEY) !== '1');
     setHistoryReady(true);
   }, []);
 
@@ -159,6 +174,23 @@ export function Forge() {
     setConstraints(exampleBrief.constraints);
   };
 
+  const dismissGuide = () => {
+    window.localStorage.setItem(ONBOARDING_KEY, '1');
+    setShowGuide(false);
+  };
+
+  const tryExample = () => {
+    loadExample();
+    dismissGuide();
+    window.requestAnimationFrame(() => {
+      document.getElementById('prompt')?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      document.getElementById('prompt')?.focus();
+    });
+  };
+
   const clearHistory = () => {
     setHistory([]);
     setSelected(null);
@@ -170,19 +202,83 @@ export function Forge() {
   return (
     <div className="container mx-auto max-w-6xl space-y-8 p-4 md:p-8">
       <section className="rounded-xl border bg-card p-6 md:p-8">
-        <div className="max-w-3xl space-y-3">
-          <div className="flex items-center gap-2 text-sm font-medium text-primary">
-            <FileText className="h-4 w-4" />
-            Idea to implementation brief
+        <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-3xl space-y-3">
+            <div className="flex items-center gap-2 text-sm font-medium text-primary">
+              <FileText className="h-4 w-4" />
+              Idea to implementation brief
+            </div>
+            <h2 className="font-headline text-3xl font-semibold tracking-tight">
+              Turn a rough bot idea into something a developer can build.
+            </h2>
+            <p className="text-muted-foreground">
+              Navio defines the users, triggers, data, actions, integrations,
+              setup and testable completion criteria for a first version.
+            </p>
           </div>
-          <h2 className="font-headline text-3xl font-semibold tracking-tight">
-            Turn a rough bot idea into something a developer can build.
-          </h2>
-          <p className="text-muted-foreground">
-            Navio defines the users, triggers, data, actions, integrations, setup and testable completion criteria for a first version.
-          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setShowGuide(true)}
+          >
+            <BookOpen className="h-4 w-4" />
+            First steps
+          </Button>
         </div>
       </section>
+
+      {showGuide && (
+        <section className="space-y-5 rounded-xl border bg-card p-6 md:p-8">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h2 className="font-headline text-2xl font-semibold">
+                Your first brief in three steps
+              </h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Start with the example or write your own idea. Everything can be edited before generation.
+              </p>
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={dismissGuide}>
+              Hide guide
+            </Button>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-lg border p-4">
+              <PencilLine className="h-5 w-5 text-primary" />
+              <h3 className="mt-3 font-semibold">1. Describe the idea</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                One clear sentence is enough. Add users, data and limits when you know them.
+              </p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <Rocket className="h-5 w-5 text-primary" />
+              <h3 className="mt-3 font-semibold">2. Generate the brief</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Navio turns the idea into a practical first-version plan with setup and integrations.
+              </p>
+            </div>
+            <div className="rounded-lg border p-4">
+              <CheckCircle2 className="h-5 w-5 text-primary" />
+              <h3 className="mt-3 font-semibold">3. Review and export</h3>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Check the assumptions, reopen recent briefs and export the result as JSON or Markdown.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 sm:flex-row">
+            <Button type="button" onClick={tryExample}>
+              <Sparkles className="h-4 w-4" />
+              Try the complete example
+            </Button>
+            <Button type="button" variant="outline" onClick={dismissGuide}>
+              Write my own idea
+            </Button>
+          </div>
+        </section>
+      )}
 
       <form action={formAction} className="space-y-6 rounded-xl border bg-card p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
